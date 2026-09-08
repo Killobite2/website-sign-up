@@ -33,6 +33,9 @@
   --fs-h1: clamp(2.1rem, 4.6vw, 3.2rem);
   --fs-h2: clamp(1.7rem, 3.4vw, 2.4rem);
   --fs-h3: clamp(1.05rem, 1.6vw, 1.3rem);
+  /* Card-scale headings. Set in Work Sans 800, not Alfa Slab One — see the
+     .card-title rule in §3 for why the display face is wrong at this size. */
+  --fs-card-title: clamp(1rem, 1.5vw, 1.15rem);
   --fs-lead: clamp(1rem, 1.4vw, 1.15rem);
   --fs-body: 1rem;
   --fs-small: 0.875rem;
@@ -88,6 +91,24 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* A backstop, not the fix. Every known overflow source is dealt with at its
+   origin (the .form-pill stack in the 480px tier, the corridor offsets,
+   overflow-wrap on headings and long email tokens). This catches the next
+   one, so a single wide child cannot rock the whole document sideways — a
+   failure mode the site had on every page.
+
+   clip, NOT hidden. `overflow-x: hidden` computes overflow-y to auto, which
+   makes body a scroll container and breaks position:sticky on .site-header
+   (:309). `clip` suppresses the overflow without establishing one, so the
+   header keeps sticking. Safari <16 ignores clip and falls back to visible:
+   that loses the backstop on old iOS but never breaks the header, which is
+   the right way round for a rule that should not be doing any work. */
+html,
+body {
+  overflow-x: clip;
+  max-width: 100%;
+}
+
 body {
   margin: 0;
   font-family: var(--font-body);
@@ -133,6 +154,19 @@ p:last-child { margin-bottom: 0; }
 
 .skip-link:focus { transform: translateY(0); }
 
+/* Announced but not shown. Used for the new-tab warning on outbound
+   links, which are otherwise a silent surprise for screen reader users. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .wrap {
   max-width: var(--max-width);
   margin: 0 auto;
@@ -150,17 +184,63 @@ h1, h2, h3, h4 {
   margin: 0;
   letter-spacing: 0.5px;
   text-wrap: balance;
+  /* Alfa Slab One uppercase is very wide, and every clamp below bottoms out
+     on a phone, so a single long word can exceed the 272px of content a
+     320px viewport offers. Breaking mid-word is ugly; overflowing the
+     viewport is worse. */
+  overflow-wrap: break-word;
 }
 
 h1 { font-size: var(--fs-h1); }
 h2 { font-size: var(--fs-h2); }
 h3 { font-size: var(--fs-h3); }
 
+/* Card-scale headings — the display face does not survive a narrow column.
+   At 5-up in .grid-5 a card has ~157px of measure, where Alfa Slab One at
+   --fs-h3 wraps "Outsourced NDIS Marketing Manager" to four lines while
+   "NDIS SEO" takes one: the row reads ragged and the cards fight each other.
+
+   Work Sans 800 uppercase is ~35% narrower and is not a new voice — it is
+   the .eyebrow treatment (:186) one step up the scale. Alfa Slab One keeps
+   every h1/h2, the .way cards, .channel-row h3 and the pull-quotes, i.e.
+   everywhere it has the measure to behave like a display face. */
+.card h3,
+.post-card h3,
+.channel-note h3,
+.nudge-title,
+.faq summary {
+  font-family: var(--font-body);
+  font-size: var(--fs-card-title);
+  font-weight: 800;
+  letter-spacing: var(--tracking-wide);
+  line-height: 1.25;
+}
+
 .script {
   font-family: var(--font-script);
   text-transform: none;
   font-weight: 400;
   letter-spacing: normal;
+}
+
+/* Holds a phrase on one line so a headline breaks where it reads best.
+   Replaces welding words with &nbsp;, which cannot be undone at any width:
+   "newsletter from me." in Alfa Slab One runs 480-505px as one unbreakable
+   token, and it was setting the minimum width of the entire newsletter hero
+   grid — which is 320px + 1fr, so the row needed roughly 900px of wrap
+   before the phrase fit. Below that it pushed the hero past the viewport,
+   measured at 768px and 1024px as well as on every phone.
+
+   Written as opt-in above 1200px rather than opt-out below some width. The
+   phrase is not a fixed size — --fs-h1 keeps growing with the viewport up
+   to 51px, so the phrase grows too (~13x the font size), and a hand-picked
+   max-width release has to be re-derived every time the type scale moves.
+   Defaulting to normal means the failure mode is a line breaking somewhere
+   slightly less pretty, not a hero pushed off the screen. */
+.keep-together { white-space: normal; }
+
+@media (min-width: 1200px) {
+  .keep-together { white-space: nowrap; }
 }
 
 .eyebrow {
@@ -196,6 +276,14 @@ h3 { font-size: var(--fs-h3); }
   letter-spacing: var(--tracking-wide);
   color: var(--paper-muted);
   margin-bottom: var(--space-4);
+}
+
+/* 12px type gives a 14px-tall inline box. These are real navigation on the
+   five channel pages, so they get a tappable box rather than the line box. */
+.breadcrumb a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
 
 .breadcrumb a:hover { color: var(--cream); }
@@ -314,6 +402,9 @@ h3 { font-size: var(--fs-h3); }
   align-items: center;
   gap: calc(10px * var(--brand-scale));
   white-space: nowrap;
+  /* The 40px mark left the whole lockup 4px short of a 44px tap target,
+     and it is the home link on every page */
+  min-height: 44px;
 }
 
 .brand-mark {
@@ -346,6 +437,7 @@ h3 { font-size: var(--fs-h3); }
 }
 
 .nav-links {
+  position: relative;
   display: flex;
   gap: var(--space-6);
   align-items: center;
@@ -356,14 +448,190 @@ h3 { font-size: var(--fs-h3); }
 .nav-links a { transition: color var(--t-fast) var(--ease); }
 .nav-links a:hover { color: var(--mustard); }
 
-/* Active page indicator — the nav used to look identical everywhere */
-.nav-links a[aria-current="page"] {
+/* Active page indicator — the nav used to look identical everywhere.
+   On desktop .nav-indicator takes over and this underline is suppressed
+   (see below); the rule stays because the mobile drawer still uses it. */
+.nav-links a[aria-current="page"],
+.nav-links .nav-sub-trigger[aria-current] {
   color: var(--mustard);
   box-shadow: inset 0 -2px 0 var(--mustard);
 }
 
 .nav-links a.nav-cta[aria-current="page"] { box-shadow: none; }
 
+/* ---- Sliding indicator ----
+   A single bar positioned by JS from each item's offsetLeft/offsetWidth,
+   rather than a per-item pseudo-element, so it can travel between items
+   instead of cross-fading. Desktop only: inside the mobile drawer the
+   items are stacked full-width and the left-bar marker reads better. */
+
+.nav-indicator {
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  height: 2px;
+  width: 0;
+  border-radius: var(--radius-pill);
+  background: var(--mustard);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(0);
+  transition: transform var(--t-base) var(--ease),
+              width var(--t-base) var(--ease),
+              opacity var(--t-fast) var(--ease);
+}
+
+.nav-indicator.is-visible { opacity: 1; }
+
+/* The travelling bar replaces the static underline, or the current page
+   would carry two markers at once */
+@media (min-width: 801px) {
+  .nav-links a[aria-current="page"],
+  .nav-links .nav-sub-trigger[aria-current] { box-shadow: none; }
+}
+
+/* ---- NDIS Marketing dropdown ---- */
+
+.nav-sub { position: relative; }
+
+.nav-sub-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--t-fast) var(--ease);
+}
+
+.nav-sub-trigger:hover,
+.nav-sub-trigger[aria-expanded="true"] { color: var(--mustard); }
+
+.nav-sub-trigger svg {
+  width: 12px;
+  height: 12px;
+  transition: transform var(--t-base) var(--ease);
+}
+
+.nav-sub-trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+/* Opaque on purpose. On the homepage .site-header is a transparent
+   gradient over the masterclass photograph, so an inherited background
+   would drop this menu's text straight onto the projector screen. */
+.nav-panel {
+  position: absolute;
+  top: calc(100% + var(--space-4));
+  left: 50%;
+  z-index: 60;
+  /* min(), not a flat 600px: at the 801px breakpoint where this panel first
+     appears, 600px plus the wrap's gutters would overhang the viewport. */
+  width: min(600px, calc(100vw - 2 * var(--space-5)));
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--ink-2);
+  border: var(--border-hairline);
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transform: translate(-50%, -6px);
+  visibility: hidden;
+  transition: opacity var(--t-base) var(--ease),
+              transform var(--t-base) var(--ease),
+              visibility 0s linear var(--t-base);
+}
+
+.nav-panel.open {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+/* Bridges the gap between trigger and panel so a diagonal mouse path
+   does not cross dead space and close the menu */
+.nav-panel::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--space-4) * -1);
+  left: 0;
+  right: 0;
+  height: var(--space-4);
+}
+
+.nav-panel a {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  transition: background var(--t-fast) var(--ease);
+}
+
+.nav-panel a:hover,
+.nav-panel a:focus-visible { background: rgba(var(--paper-rgb), 0.07); }
+
+.nav-panel-num {
+  flex: 0 0 auto;
+  font-family: var(--font-display);
+  font-size: var(--fs-micro);
+  color: var(--mustard);
+  padding-top: 2px;
+}
+
+.nav-panel-title { display: block; color: var(--paper); }
+
+.nav-panel-desc {
+  display: block;
+  margin-top: 2px;
+  font-weight: 400;
+  font-size: var(--fs-micro);
+  line-height: 1.4;
+  color: var(--paper-faint);
+}
+
+.nav-panel-overview {
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-hairline);
+}
+
+/* ---- Two-column panel ----
+   The dropdown lists seven channels across two engines plus the managed
+   tier. Nine rows in a 320px column runs past the fold on a laptop, so the
+   groups sit side by side and the panel widens to suit.
+
+   Each group is its own wrapper rather than the panel being a two-column
+   grid: a grid flows row-wise, which would interleave Marketing and Growth
+   entries. Wrappers keep DOM order equal to reading order, which is also
+   what initNavIndicator's arrow-key walk over querySelectorAll('a')
+   depends on. */
+.nav-panel-cols {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.nav-panel-col { flex: 1 1 0; min-width: 0; }
+
+/* A label, not a heading: it must not enter the document outline, and the
+   panel sits inside a <nav> where an h-level would be noise. */
+.nav-panel-group {
+  display: block;
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: var(--fs-micro);
+  letter-spacing: var(--tracking-wider);
+  color: var(--mustard);
+}
+
+.nav-panel-group + .nav-panel-group,
+.nav-panel-col a + .nav-panel-group { margin-top: var(--space-3); }
+
+/* 44px square. It was 39x34 — the smallest hit area on the site and also
+   the most-used control on a phone, since it gates the whole nav. The glyph
+   still renders at 1.6rem; the box around it is what changed. */
 .nav-toggle {
   display: none;
   background: none;
@@ -372,7 +640,11 @@ h3 { font-size: var(--fs-h3); }
   font-size: 1.6rem;
   line-height: 1;
   cursor: pointer;
-  padding: var(--space-1) var(--space-2);
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
 }
 
 /* ---------------------------------------------------------------
@@ -467,6 +739,10 @@ section { padding: var(--space-9) 0; }
   gap: var(--space-5);
 }
 
+/* grid-5 forces five columns where grid-auto will not: five 210px minimums
+   plus four 24px gaps is 1146px, over the 1120px wrap, so auto-fit drops to
+   four and strands the fifth card on a row of its own. */
+.grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -479,8 +755,13 @@ section { padding: var(--space-9) 0; }
    10. CARDS
    --------------------------------------------------------------- */
 
+/* Column, not block, for the same reason .post-card.has-thumb is one (:800):
+   the grid equalises card heights, so without it the "Learn more" line
+   trails whatever length its own copy happens to be and the row's five
+   links land at five different heights. */
 .card {
-  display: block;
+  display: flex;
+  flex-direction: column;
   background: var(--paper);
   color: var(--ink);
   border-radius: var(--radius-md);
@@ -490,6 +771,11 @@ section { padding: var(--space-9) 0; }
               box-shadow var(--t-base) var(--ease),
               border-color var(--t-base) var(--ease);
 }
+
+/* auto beats the .card-more margin-top on specificity; padding-top restores
+   a minimum gap for the tallest card in the row, where auto resolves to 0.
+   Same pairing as .has-thumb .card-more (:836). */
+.card > .card-more { margin-top: auto; padding-top: var(--space-5); }
 
 /* Only cards that are actually links get an interactive affordance */
 a.card:hover,
@@ -515,16 +801,6 @@ a.card:focus-visible {
 
 .card h3 { margin-bottom: var(--space-3); }
 .card p { color: var(--ink); }
-
-.card .tag {
-  display: inline-block;
-  margin-top: var(--space-4);
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  color: var(--oxblood);
-}
 
 /* "Read more →" / "Learn more →" — 15 inline styles collapsed */
 .card-more {
@@ -567,18 +843,58 @@ a.post-card:focus-visible {
 
 .post-card .eyebrow { margin-bottom: var(--space-3); }
 
-/* Upcoming-post state — honest about not being published yet */
-.post-card.is-upcoming { border-color: rgba(var(--paper-rgb), 0.12); }
+/* Thumbnail variant. The card's own padding moves to .post-body so the
+   artwork can bleed to the edge, and overflow clips it back to the radius
+   — neither is needed by the base .post-card, so both live here.
 
-.post-card .status {
-  display: inline-block;
-  margin-top: var(--space-4);
-  font-size: var(--fs-micro);
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  color: var(--paper-faint);
+   The resting border matches .is-upcoming above for the same reason it
+   exists there: on index.html these cards sit in a .section-ink2 band whose
+   background is the card's own --ink-2, so without an edge the body of the
+   card dissolves into the band. Held at 2px so the mustard hover swaps
+   colour without shifting layout. */
+.post-card.has-thumb {
+  padding: 0;
+  overflow: hidden;
+  border-color: rgba(var(--paper-rgb), 0.12);
+  /* Column so .post-body can stretch to the grid-equalised card height,
+     which is what lets the Read more line sit on a common baseline
+     across cards whose excerpts run to different lengths */
+  display: flex;
+  flex-direction: column;
 }
+
+.post-thumb {
+  width: 100%;
+  /* height:auto is load-bearing, the same trap documented on .founder-photo:
+     the img carries height="500", which lands on the CSS height property as
+     a presentational hint. Width and height would then both be definite and
+     aspect-ratio would be ignored. The attributes stay for CLS reservation. */
+  height: auto;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: var(--ink);
+}
+
+.post-body {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* Pushed to the foot of the card rather than trailing the excerpt */
+.has-thumb .card-more { margin-top: auto; padding-top: var(--space-5); }
+
+/* Dimmed like .faq p rather than sitting at full --paper brightness, so the
+   title keeps the hierarchy */
+.post-excerpt {
+  margin-top: var(--space-3);
+  font-size: var(--fs-small);
+  color: var(--paper-muted);
+}
+
+/* Outbound arrow in place of the in-site → */
+.post-card.is-external .card-more::after { content: '↗'; }
 
 /* ---------------------------------------------------------------
    11. SOCIAL PROOF
@@ -619,8 +935,15 @@ a.post-card:focus-visible {
   to { transform: translateX(-50%); }
 }
 
-/* Pause whenever someone is reaching for a logo — clicking a moving
-   target is hostile, and these tiles are interactive */
+/* Pauses on hover so a logo can be read rather than chased.
+
+   Honest about the limit: the tiles are plain divs with nothing focusable
+   inside, so :focus-within cannot fire, and there is no touch equivalent —
+   on a phone the wall never stops. Accepted rather than fixed, because the
+   alternative is making thirteen decorative logos focusable and adding
+   thirteen stops to the tab order of every page. Nothing is only available
+   here; the client names appear in the copy too. The :focus-within half is
+   kept for the day a tile becomes a real link. */
 .marquee:hover .marquee-track,
 .marquee:focus-within .marquee-track { animation-play-state: paused; }
 
@@ -637,7 +960,6 @@ a.post-card:focus-visible {
   background: #FFFFFF;
   border: 2px solid transparent;
   border-radius: var(--radius-md);
-  cursor: pointer;
   font: inherit;
   transition: transform var(--t-base) var(--ease),
               box-shadow var(--t-base) var(--ease),
@@ -651,93 +973,15 @@ a.post-card:focus-visible {
   object-fit: contain;
 }
 
-.logo-tile:hover,
-.logo-tile:focus-visible {
+/* The tiles are plain divs, not buttons: there is nothing to click. The
+   lift on hover stays, because the wall pauses under the pointer and a
+   little response keeps that from reading as a stall. On touch the lift is
+   suppressed in §28, where :hover cannot be trusted. */
+.logo-tile:hover {
   transform: scale(1.08);
   box-shadow: var(--shadow-lg);
   border-color: var(--mustard);
 }
-
-.logo-tile[aria-pressed="true"] {
-  border-color: var(--mustard);
-  box-shadow: var(--shadow-md);
-}
-
-.marquee-hint {
-  margin-top: var(--space-4);
-  font-size: var(--fs-micro);
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  color: var(--paper-faint);
-}
-
-.brands-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3) var(--space-6);
-  margin-top: var(--space-5);
-  padding: 0;
-  list-style: none;
-  font-family: var(--font-display);
-  text-transform: uppercase;
-  font-size: var(--fs-small);
-  color: var(--paper-muted);
-}
-
-/* Testimonials */
-
-/* Single panel driven by the logo wall above it */
-
-.testimonial-panel {
-  margin: var(--space-7) 0 0;
-  background: var(--ink-2);
-  border: var(--border-hairline);
-  border-left: 4px solid var(--mustard);
-  border-radius: var(--radius-md);
-  padding: var(--space-7) var(--space-6);
-}
-
-.testimonial-panel blockquote {
-  margin: 0;
-  font-size: var(--fs-lead);
-  line-height: 1.6;
-}
-
-.testimonial-panel .attrib {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  margin-top: var(--space-5);
-}
-
-.testimonial-panel .attrib img {
-  flex: 0 0 auto;
-  width: 52px;
-  height: 52px;
-  padding: var(--space-1);
-  background: #FFFFFF;
-  border-radius: var(--radius-sm);
-  object-fit: contain;
-}
-
-.testimonial-panel .who {
-  font-size: var(--fs-micro);
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  color: var(--mustard);
-}
-
-/* Awaiting a real quote — visibly unfinished, never mistaken for copy */
-.testimonial-panel.is-placeholder {
-  background: transparent;
-  border: 1px dashed rgba(var(--paper-rgb), 0.25);
-  border-left: 4px solid var(--paper-faint);
-}
-
-.testimonial-panel.is-placeholder blockquote { color: var(--paper-faint); }
-.testimonial-panel.is-placeholder .who { color: var(--paper-faint); }
 
 /* ---------------------------------------------------------------
    12. STAT PANEL
@@ -873,6 +1117,11 @@ input, textarea {
   transition: border-color var(--t-fast) var(--ease);
 }
 
+/* Vertical only: the default `both` lets the drag handle widen a textarea
+   past its container, which pushes the consult dialog into horizontal
+   overflow and does the same to the contact form. */
+textarea { resize: vertical; }
+
 input::placeholder, textarea::placeholder { color: var(--paper-faint); }
 input:hover, textarea:hover { border-color: rgba(var(--paper-rgb), 0.5); }
 
@@ -908,26 +1157,142 @@ label {
   margin-top: var(--space-4);
 }
 
+/* ---- Waitlist pill ----
+   One rounded surface holding the field and its button, which on submit
+   fills mustard in place rather than being swapped out for a separate
+   message. Swapping (the old .newsletter-form.is-submitted display:none)
+   cannot be animated — the box has to survive for the morph to happen. */
+
+.form-pill {
+  position: relative;
+  display: flex;
+  margin-top: var(--space-5);
+  padding: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--ink-2);
+  border: 1px solid rgba(var(--paper-rgb), 0.25);
+  transition: background var(--t-base) var(--ease),
+              border-color var(--t-base) var(--ease);
+}
+
+/* Light surfaces, scoped to the surface rather than the section for the
+   same reason as the input rule above — the homepage panel sits inside
+   .section-oxblood, so a section-scoped rule misses it */
+.lead-panel .form-pill,
+.section-paper .form-pill {
+  background: #FFFDF8;
+  border-color: rgba(var(--ink-rgb), 0.2);
+}
+
+.form-pill:focus-within { border-color: var(--mustard); }
+
+/* Button-only variant, for the contact form — a four-field form has no
+   single field to sit in the pill, so only its submit morphs */
+.form-pill-compact { display: inline-flex; margin-top: 0; }
+
+.form-pill-fields {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  transition: opacity var(--t-base) var(--ease),
+              transform var(--t-base) var(--ease);
+}
+
+/* Borderless and transparent: the pill wrapper is the visible surface now,
+   so the field must not draw a second one inside it */
+.form-pill input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  min-height: 44px;   /* padding alone left it at 43 */
+  border: none;
+  background: transparent;
+  padding: var(--space-3) var(--space-4);
+}
+
+.form-pill input:hover,
+.form-pill input:focus { border: none; outline: none; }
+
+.form-pill .btn {
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  padding: var(--space-3) var(--space-5);
+}
+
+.form-pill-success {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin: 0;
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  font-weight: 800;
+  font-size: var(--fs-small);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: opacity var(--t-base) var(--ease),
+              transform var(--t-base) var(--ease);
+}
+
+.form-pill.is-submitted { background: var(--mustard); border-color: var(--mustard); }
+
+.form-pill.is-submitted .form-pill-fields {
+  opacity: 0;
+  transform: scale(0.96);
+  pointer-events: none;
+}
+
+.form-pill.is-submitted .form-pill-success {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.12s;
+}
+
+.form-tick { flex: 0 0 auto; }
+
+/* Total path length is about 13.1 units, so 14 covers it with a margin */
+.form-tick-path { stroke-dasharray: 14; stroke-dashoffset: 14; }
+
+.form-pill.is-submitted .form-tick-path {
+  animation: tick-draw var(--t-base) var(--ease) 0.2s both;
+}
+
+@keyframes tick-draw {
+  from { stroke-dashoffset: 14; }
+  to { stroke-dashoffset: 0; }
+}
+
 /* ---------------------------------------------------------------
    16. FAQ
    --------------------------------------------------------------- */
 
 .faq { display: grid; gap: var(--space-3); }
 
+/* No padding here — it moved onto summary and .faq p so the summary's own
+   box is the full-width tap target. */
 .faq details {
   background: var(--ink-2);
   border: var(--border-hairline);
   border-radius: var(--radius-md);
-  padding: var(--space-5) var(--space-6);
 }
 
 .faq details[open] { border-color: rgba(var(--paper-rgb), 0.3); }
 
+/* Family, size and tracking come from the card-title rule in §3.
+   The padding lives here rather than on .faq details so the whole tap
+   target is the summary box itself — on details it sat outside the
+   summary, leaving a ~22px-tall target on a phone. */
 .faq summary {
-  font-family: var(--font-display);
   text-transform: uppercase;
-  font-size: var(--fs-h3);
-  line-height: 1.3;
+  padding: var(--space-5) var(--space-6);
   cursor: pointer;
   list-style: none;
   display: flex;
@@ -948,8 +1313,10 @@ label {
 
 .faq details[open] summary::after { transform: rotate(45deg); }
 
+/* Picks up the horizontal gutter that details gave up, and the bottom one.
+   margin-top is 0 because summary's own padding already separates them. */
 .faq p {
-  margin-top: var(--space-4);
+  margin: 0 var(--space-6) var(--space-5);
   color: var(--paper-muted);
   max-width: 68ch;
 }
@@ -965,10 +1332,53 @@ label {
   border-top: var(--border-hairline);
 }
 
+/* Four columns now: brand, Services, Company, Contact. The service list
+   went from one hub link to eight channel pages, and a flat single-line
+   list does not hold at that count. */
 .footer-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-columns: 1.4fr 1fr 0.8fr 1.1fr;
   gap: var(--space-6);
+}
+
+/* ---- Footer newsletter capture ----
+   The footer is where people land who have read the page and are not ready
+   to book, so it offers the lower-commitment step. Reuses .form-pill and
+   .js-waitlist with the live Beehiiv action, so initWaitlistForms picks it
+   up with no JS change and it genuinely submits. */
+.footer-signup {
+  margin-top: var(--space-7);
+  padding-top: var(--space-6);
+  border-top: var(--border-hairline);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: var(--space-6);
+  align-items: center;
+}
+
+/* A <p>, not a heading, for the same reason .footer-label is not one: this
+   block repeats on every page and an h2 in the footer would sit in the
+   outline below whatever the page's own h2s are. */
+.footer-signup-title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-body);
+  font-size: var(--fs-card-title);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--paper);
+}
+
+.footer-signup .form-pill { margin-top: 0; }
+
+.footer-signup .form-note { margin-top: var(--space-3); }
+
+@media (max-width: 900px) {
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 700px) {
+  .footer-signup { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
 }
 
 .site-footer .brand { --brand-scale: 1.15; }
@@ -1050,6 +1460,30 @@ label {
   object-position: 55% 38%;
 }
 
+/* Optional video layer over the photo, injected by initHeroVideo() on wide
+   viewports only. The photo underneath stays the base layer, the poster and
+   the fallback, so this can fail to load or be skipped entirely with no
+   visible gap.
+
+   The source is 1600x598 (2.68:1), authored for the newsletter's wide band
+   rather than a full-viewport hero: on a phone only 17% of its width would
+   show, upscaled 2.8x, for 2.89MB. Hence wide viewports only. It fades in
+   rather than popping, since the photo is already on screen. It must stay
+   BELOW ::after so the whole scrim, and every contrast measurement behind
+   it, still applies. */
+.photo-frame > video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 45%;   /* holds Chris, who sits mid-frame */
+  opacity: 0;
+  transition: opacity var(--t-slow) var(--ease);
+}
+
+.photo-frame > video.is-ready { opacity: 1; }
+
 /* Two-axis scrim: heavy along the bottom where the type sits, plus a
    left wash so the headline never competes with the curtain texture */
 .photo-frame::after {
@@ -1061,8 +1495,8 @@ label {
     linear-gradient(to top,
       rgba(var(--ink-rgb), 0.96) 0%,
       rgba(var(--ink-rgb), 0.86) 20%,
-      rgba(var(--ink-rgb), 0.58) 42%,
-      rgba(var(--ink-rgb), 0.24) 66%,
+      rgba(var(--ink-rgb), 0.68) 42%,
+      rgba(var(--ink-rgb), 0.38) 66%,
       rgba(var(--ink-rgb), 0.55) 100%),
     /* The headline measured 2.85:1 against the projector screen, under AA
        for large text. Most of the correction goes into this left wash
@@ -1070,17 +1504,20 @@ label {
        wrap, so darkening leftwards buys contrast where the glyphs are
        without dimming the right of the frame, where the room reads. */
     linear-gradient(to right,
-      rgba(var(--ink-rgb), 0.82) 0%,
-      rgba(var(--ink-rgb), 0.30) 52%,
+      rgba(var(--ink-rgb), 0.86) 0%,
+      rgba(var(--ink-rgb), 0.42) 52%,
       rgba(var(--ink-rgb), 0) 100%);
 }
 
+/* padding-bottom is small because .hero-proof now occupies the band that
+   used to be empty photograph. Raising it back to --space-9 without also
+   removing the strip re-opens the gap it was added to fill. */
 .photo-hero-content {
   position: relative;
   z-index: 1;
   width: 100%;
   padding-top: var(--space-10);
-  padding-bottom: var(--space-9);
+  padding-bottom: var(--space-5);
 }
 
 /* Mustard on a photograph cannot reach AA wherever the projector screen
@@ -1109,12 +1546,13 @@ label {
   color: var(--paper);
 }
 
+/* In flow at the end of the copy block, not pinned to the frame's bottom
+   corner: the logo strip now sits in that corner, and an absolute credit
+   would land on top of it. Keeping it in flow also means its offset never
+   needs re-deriving when the tile size changes. */
 .photo-credit {
-  position: absolute;
-  z-index: 1;
-  right: var(--space-5);
-  bottom: var(--space-5);
-  max-width: 40%;
+  display: block;
+  margin-top: var(--space-4);
   text-align: right;
   font-size: var(--fs-micro);
   font-weight: 800;
@@ -1148,85 +1586,423 @@ body.photo-hero .site-header.is-scrolled {
   box-shadow: var(--shadow-md);
 }
 
+/* Proof bar filling the hero's lower band, and lifting the headline block
+   off the bottom edge in the process.
+
+   This was a logo strip. The logos are the Trusted by wall's own content
+   (§11), so running them here too put the same 13 marks on screen twice on
+   one page. Figures occupy the same band, say something the copy above does
+   not, and need no JS — the strip needed cloning to loop seamlessly. */
+
+.hero-proof {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5) var(--space-8);
+  margin-top: var(--space-6);
+  padding: 0;
+  list-style: none;
+}
+
+.hero-stat { max-width: 22ch; }
+
+/* Mustard is safe here where the eyebrow chip above needed its own opaque
+   ground: the scrim's bottom stop is rgba(ink, 0.96), so this end of the
+   frame is near-black whatever the photograph is doing behind it. */
+.hero-stat-figure {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+  line-height: 1.1;
+  color: var(--mustard);
+}
+
+.hero-stat-label {
+  display: block;
+  margin-top: var(--space-2);
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--paper-muted);
+}
+
 /* ---------------------------------------------------------------
-   19. JOURNEY MATRIX
+   19b. PHOTO CORRIDOR — two walls receding to one vanishing point
    --------------------------------------------------------------- */
 
-.matrix-scroll { overflow-x: auto; }
-
-.matrix {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: var(--fs-small);
-  min-width: 720px;
+.corridor {
+  position: relative;
+  height: 460px;
+  margin-top: var(--space-7);
+  overflow: hidden;
+  perspective: 1100px;
+  perspective-origin: 50% 48%;
 }
 
-.matrix caption {
-  text-align: left;
-  font-size: var(--fs-micro);
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  color: var(--paper-faint);
-  padding-bottom: var(--space-4);
+/* --span is TEN card depths, matching the ten unique cards written twice
+   in the markup. Flying exactly that far means card 11 lands where card 1
+   started, so the loop has no seam. Change one and you must change both:
+   --span must always equal (unique cards) x --gap-z.
+
+   The duration scales with the span too, or the fly-through simply gets
+   faster as cards are added. 32s covered 1920px; 53s covers 3200px at the
+   same perceived speed. */
+.corridor-wall {
+  --gap-z: 320px;
+  --span: 3200px;
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: corridor-fly 53s linear infinite;
 }
 
-.matrix thead th {
-  background: var(--oxblood);
+@keyframes corridor-fly {
+  from { transform: translateZ(0); }
+  to { transform: translateZ(var(--span)); }
+}
+
+/* Deliberately NOT paused on hover. The marquee pauses because its tiles are
+   real buttons and clicking a moving target is hostile; this corridor is
+   aria-hidden decoration — plain divs, alt="" images, nothing focusable or
+   clickable inside — so there is no target to protect, and a full-width band
+   that freezes under the pointer just reads as a stalled page. Motion
+   sensitivity is handled by the prefers-reduced-motion block below, which
+   rebuilds this as a static grid rather than relying on hover. Do not copy
+   the marquee's pause rule back onto it. */
+
+.corridor-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 380px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  backface-visibility: hidden;
+}
+
+.corridor-card img { width: 100%; height: auto; display: block; }
+
+/* Each wall angles inward so the two converge. translateZ is negative and
+   grows with --i, putting later cards further down the corridor. */
+.corridor-left .corridor-card {
+  transform: translate3d(-450px, -50%, calc(var(--i) * var(--gap-z) * -1)) rotateY(34deg);
+}
+
+.corridor-right .corridor-card {
+  transform: translate3d(70px, -50%, calc(var(--i) * var(--gap-z) * -1)) rotateY(-34deg);
+}
+
+/* Fades the far end into the page so cards arrive out of the dark rather
+   than popping into existence at the vanishing point */
+.corridor::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Kept deliberately tight. A wide radial reads as a haze over the whole
+     corridor and dims the near photographs, which are the ones anyone
+     actually looks at — this only has to swallow the vanishing point. */
+  background:
+    radial-gradient(15% 30% at 50% 48%,
+      rgba(var(--ink-rgb), 0.9) 0%,
+      rgba(var(--ink-rgb), 0.55) 45%,
+      rgba(var(--ink-rgb), 0) 80%),
+    linear-gradient(to right,
+      var(--ink) 0%,
+      rgba(var(--ink-rgb), 0) 11%,
+      rgba(var(--ink-rgb), 0) 89%,
+      var(--ink) 100%);
+}
+
+/* ---------------------------------------------------------------
+   19c. GRAIN CTA — animated closing band
+   --------------------------------------------------------------- */
+
+.grain-cta {
+  position: relative;
+  overflow: hidden;
+  background: var(--ink);
+  text-align: center;
+}
+
+/* The first radial-gradients in this stylesheet; everything else is linear.
+   Blurred hard so the two blooms read as one drifting field rather than two
+   discs, which is what keeps the grain on top looking like texture. */
+.grain-cta::before {
+  content: '';
+  position: absolute;
+  inset: -25%;
+  background:
+    radial-gradient(38% 42% at 28% 32%, var(--oxblood) 0%, transparent 68%),
+    radial-gradient(32% 36% at 74% 68%, var(--mustard) 0%, transparent 68%),
+    radial-gradient(30% 34% at 60% 20%, var(--cream) 0%, transparent 70%);
+  filter: blur(70px);
+  opacity: 0.85;
+  animation: grain-drift 26s ease-in-out infinite alternate;
+}
+
+@keyframes grain-drift {
+  from { transform: translate3d(-4%, -3%, 0) scale(1); }
+  to { transform: translate3d(5%, 4%, 0) scale(1.12); }
+}
+
+/* --grain's first use as an overlay on a dark ground; the three paper
+   surfaces multiply it instead */
+.grain-cta::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--grain);
+  opacity: 0.55;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.grain-cta .wrap { position: relative; z-index: 1; }
+
+/* Paper on the mustard bloom is the contrast failure case, so the copy
+   carries its own shadow rather than relying on where the drift happens
+   to be when someone lands on the page */
+.grain-cta h2,
+.grain-cta .lead {
   color: var(--paper);
-  font-family: var(--font-body);
-  font-weight: 800;
-  font-size: var(--fs-micro);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  padding: var(--space-4) var(--space-4);
-  vertical-align: middle;
+  text-shadow: 0 2px 18px rgba(var(--ink-rgb), 0.85);
 }
 
-.matrix thead th:first-child { border-radius: var(--radius-md) 0 0 0; }
-.matrix thead th:last-child { border-radius: 0 var(--radius-md) 0 0; }
+.grain-cta .lead { max-width: 54ch; margin: var(--space-5) auto 0; }
+.grain-cta .btn-row { justify-content: center; }
 
-.matrix tbody th {
+/* ---------------------------------------------------------------
+   19d. CONSULT DIALOG
+
+   Native <dialog>, so focus trapping, Escape and the backdrop come
+   from the platform rather than being hand-rolled. Markup is built
+   in JS — it is identical on every page, and eleven copies is how
+   the nav drifted.
+   --------------------------------------------------------------- */
+
+/* The height chain here is load-bearing and easy to break.
+
+   max-height + overflow:hidden alone does NOT give you a scrollable modal.
+   The grid inside used to size its row to content (813px desktop, 1058px
+   phone) no matter the viewport, so .consult-form's overflow-y:auto was
+   inert — a grid item stretched to a content-sized row has
+   scrollHeight === clientHeight, nothing to scroll — and overflow:hidden
+   then blocked user scrolling entirely. Anything past the fold was gone:
+   on a 1366x768 laptop that meant Chris's email and phone, and once the
+   form is wired it would mean the submit button.
+
+   So: flex column here, a row bounded to 1fr on the grid, and min-height:0
+   at both levels because flex and grid items will not shrink below their
+   content without it. */
+.consult {
+  position: relative;   /* anchors .consult-close, which sits outside the grid */
+  display: flex;
+  flex-direction: column;
+  width: min(920px, calc(100vw - 2 * var(--space-5)));
+  /* svh, not vh: with the iOS URL bar showing, vh measures the LARGE
+     viewport, so the dialog is sized taller than what is actually visible
+     and its bottom — the submit button, or Chris's email and phone in the
+     un-wired state — sits under the browser chrome. Same pairing as
+     .photo-frame and .newsletter-hero. vh first as the fallback. */
+  max-height: calc(100vh - 2 * var(--space-6));
+  max-height: calc(100svh - 2 * var(--space-6));
+  padding: 0;
+  border: var(--border-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--ink-2);
+  color: var(--paper);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden; /* keeps the gradient panel inside the rounded corners */
+}
+
+.consult::backdrop {
+  background: rgba(var(--ink-rgb), 0.78);
+  backdrop-filter: blur(3px);
+}
+
+.consult-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  /* minmax(0, 1fr), not the default auto: an auto row is max-content, so the
+     items would stretch past the dialog again even with the grid bounded. */
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+
+.consult-form {
+  position: relative;
+  padding: var(--space-7) var(--space-6);
+  overflow-y: auto;
+  min-height: 0;                /* without this the grid item never shrinks */
+  overscroll-behavior: contain;  /* don't hand the scroll to the page behind */
+}
+
+.consult-form h2 { margin: var(--space-3) 0 0; font-size: var(--fs-h2); }
+
+.consult-sub {
+  margin: var(--space-3) 0 0;
+  font-size: var(--fs-small);
+  color: var(--paper-muted);
+}
+
+/* Anchored to .consult, not .consult-form. On a phone .consult-visual takes
+   order:-1 and leads the stack, so a form-anchored X started several hundred
+   pixels down the scroll container — off-screen at the moment the dialog
+   opened, when it is the only control the user is looking for.
+
+   The trade is that it now sits over .consult-visual's gradient rather than
+   inside the form, so it carries its own ground to stay legible against the
+   mustard bloom, and .consult-visual-copy reserves room for it below. */
+.consult-close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  background: rgba(var(--ink-rgb), 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--border-hairline);
+  border-radius: var(--radius-pill);
+  color: var(--paper);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--t-fast) var(--ease),
+              border-color var(--t-fast) var(--ease);
+}
+
+.consult-close:hover { color: var(--paper); border-color: var(--paper); }
+
+.consult-notice {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-small);
+  color: var(--mustard);
+}
+
+/* chris@clgrowthacademy.com.au is 28 characters with no break opportunity
+   in it, and at 700 weight it is wider than the dialog's content box on a
+   phone. anywhere, not break-word: break-word only breaks a word that
+   would overflow on its own line, which leaves the address to push the box
+   wider first. */
+.consult-direct {
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.form-pill-success,
+.footer-grid li a { overflow-wrap: anywhere; }
+
+/* Same drifting-bloom treatment as the closing CTA band, so the two read
+   as one system rather than two takes on the same idea */
+.consult-visual {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-7) var(--space-6);
+  background: var(--ink);
+}
+
+.consult-visual::before {
+  content: '';
+  position: absolute;
+  inset: -30%;
+  background:
+    radial-gradient(40% 44% at 30% 28%, var(--oxblood) 0%, transparent 68%),
+    radial-gradient(34% 38% at 72% 72%, var(--mustard) 0%, transparent 68%);
+  filter: blur(60px);
+  opacity: 0.9;
+  animation: grain-drift 26s ease-in-out infinite alternate;
+}
+
+.consult-visual::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--grain);
+  opacity: 0.55;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+/* The blurred oxblood/mustard gradient paints on ::before behind these, so
+   they need both the stacking context and the shadow to stay readable as it
+   drifts. */
+.consult-visual-copy,
+.consult-visual-points,
+.consult-visual-meta {
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 2px 18px rgba(var(--ink-rgb), 0.85);
+}
+
+/* Clears the close button, which is anchored to the dialog corner and so
+   overlaps this panel's first line. 44px control + its 16px offset. */
+.consult-visual-copy { padding-right: 60px; }
+
+/* Fills the middle of the panel. Without it .consult-visual's
+   space-between left a large empty band between headline and meta line. */
+.consult-visual-points {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 30ch;
+  font-size: var(--fs-small);
+  color: var(--paper);
+}
+
+.consult-visual-points li {
+  padding-left: var(--space-5);
+  position: relative;
+}
+
+/* Drawn, not typed. This was a literal em-dash in content:, which rendered
+   on every page and was the site's only remaining breach of the no-em-dash
+   rule. Same mustard bar .showcase-points uses, so the two lists match. */
+.consult-visual-points li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 14px;
+  height: 2px;
+  background: var(--mustard);
+}
+
+.consult-visual-copy {
+  margin: 0;
   font-family: var(--font-display);
   text-transform: uppercase;
-  font-size: var(--fs-small);
-  line-height: 1.2;
-  color: var(--mustard);
-  white-space: nowrap;
-}
-
-.matrix tbody th,
-.matrix tbody td {
-  padding: var(--space-5) var(--space-4);
-  border-bottom: var(--border-hairline);
-  vertical-align: top;
-}
-
-.matrix tbody tr:last-child th,
-.matrix tbody tr:last-child td { border-bottom: none; }
-
-.matrix tbody tr { background: var(--ink-2); }
-.matrix tbody tr:nth-child(even) { background: rgba(var(--paper-rgb), 0.04); }
-
-/* Message-angle column carries the actual ad copy — set as a quote */
-.matrix .angle {
-  font-style: italic;
+  font-size: var(--fs-h2);
+  line-height: 1.1;
   color: var(--paper);
 }
 
-/* Cells obscured in the source photo — visibly unresolved, never guessed */
-.needs-confirm {
-  display: inline-block;
-  font-style: normal;
+.consult-visual-copy .script {
+  font-family: var(--font-script);
+  text-transform: none;
+  color: var(--cream);
+}
+
+.consult-visual-meta {
+  margin: var(--space-5) 0 0;
   font-size: var(--fs-micro);
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--ink);
-  background: var(--mustard);
-  border-radius: var(--radius-sm);
-  padding: 2px var(--space-2);
+  letter-spacing: var(--tracking-wide);
+  color: var(--paper-muted);
 }
 
 /* ---------------------------------------------------------------
@@ -1302,6 +2078,17 @@ body.photo-hero .site-header.is-scrolled {
 
 .way-mustard h3, .way-paper h3 { color: var(--ink); }
 .way-oxblood h3, .way-ink2 h3 { color: var(--paper); }
+
+/* Inherits each surface's text colour through currentColor on the stroke,
+   which is the whole reason these icons are inline SVG rather than files
+   under img/ — an <img>-loaded SVG is a separate document and would need
+   four hardcoded colour variants, one per .way surface. */
+.way-icon {
+  width: 40px;
+  height: 40px;
+  margin-bottom: var(--space-4);
+  color: inherit;
+}
 
 .way h3 { margin-bottom: var(--space-3); }
 
@@ -1394,13 +2181,15 @@ body.photo-hero .site-header.is-scrolled {
    --------------------------------------------------------------- */
 
 @media (max-width: 900px) {
-  .grid-4, .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-5, .grid-4, .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .founder { grid-template-columns: 200px 1fr; gap: var(--space-6); }
   .ways { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 800px) {
-  .nav-toggle { display: block; }
+  /* inline-flex, not block — the base rule centres the glyph in its 44px
+     box with align-items/justify-content, which need a flex container */
+  .nav-toggle { display: inline-flex; }
 
   .nav-links {
     position: absolute;
@@ -1414,10 +2203,69 @@ body.photo-hero .site-header.is-scrolled {
     max-height: 0;
     overflow: hidden;
     box-shadow: var(--shadow-md);
-    transition: max-height var(--t-base) var(--ease);
+    /* visibility, not just max-height: a 0-height overflow:hidden drawer
+       still leaves its links in the tab order, so a keyboard user could
+       tab into an invisible menu. Delayed so it does not cut the collapse
+       animation short. */
+    visibility: hidden;
+    transition: max-height var(--t-base) var(--ease),
+                visibility 0s linear var(--t-base);
   }
 
-  .nav-links.open { max-height: 60vh; }
+  /* 85vh with its own scroll, not 60vh: the drawer now nests a six-item
+     submenu and would otherwise clip it against overflow: hidden.
+
+     svh follows vh for the reason given on .consult: with the URL bar
+     showing, 85vh measures the large viewport, so a fully expanded drawer
+     runs past the visible bottom edge. overscroll-behavior stops the scroll
+     handing off to the page once the drawer hits either end, which
+     otherwise moves the page underneath the open menu. */
+  .nav-links.open {
+    max-height: 85vh;
+    max-height: 85svh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    visibility: visible;
+    transition-delay: 0s;
+  }
+
+  /* Inline disclosure rather than a floating panel on small screens */
+  .nav-indicator { display: none; }
+
+  .nav-sub { display: flex; flex-direction: column; }
+
+  .nav-sub-trigger {
+    width: 100%;
+    justify-content: space-between;
+    padding: var(--space-4) var(--space-5);
+    border-top: 1px solid rgba(var(--paper-rgb), 0.08);
+  }
+
+  .nav-panel {
+    position: static;
+    width: auto;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: rgba(var(--ink-rgb), 0.45);
+    transform: none;
+    display: none;
+  }
+
+  .nav-panel.open { transform: none; display: block; }
+
+  /* Back to one column inside the drawer, which is already narrow and
+     already scrolls. Two columns here would halve the measure for no gain. */
+  .nav-panel-cols { flex-direction: column; gap: 0; }
+
+  .nav-panel-group { padding: var(--space-3) var(--space-5) var(--space-1); }
+
+  .nav-panel::before { display: none; }
+
+  .nav-panel a { padding: var(--space-3) var(--space-5); border-radius: 0; }
+
+  .nav-panel-overview { margin: 0; border-bottom: none; }
 
   .nav-links a {
     padding: var(--space-4) var(--space-5);
@@ -1425,13 +2273,29 @@ body.photo-hero .site-header.is-scrolled {
     border-top: 1px solid rgba(var(--paper-rgb), 0.08);
   }
 
-  .nav-links a[aria-current="page"] { box-shadow: inset 3px 0 0 var(--mustard); }
+  .nav-links a[aria-current="page"],
+  .nav-links .nav-sub-trigger[aria-current] { box-shadow: inset 3px 0 0 var(--mustard); }
 
   .nav-links a.nav-cta {
     margin: var(--space-4) var(--space-5) var(--space-5);
     width: auto;
     justify-content: center;
     border-top: none;
+  }
+
+  /* The footer list is the site's secondary nav, and once .footer-grid goes
+     single column it is the main one on a phone. As inline links they were
+     16px tall on a ~30px pitch — two adjacent targets inside one thumb.
+     Scoped to this query rather than applied globally so the desktop footer
+     does not grow by 24px per row for no benefit. */
+  .footer-grid li { margin-bottom: 0; }
+
+  /* block, not inline-block: "Blog" is a 29px-wide word, and a target
+     sized to its text is a target you have to aim at. The row is the
+     target instead, which is the ordinary phone-nav convention. */
+  .footer-grid li a {
+    display: block;
+    padding: var(--space-3) 0;
   }
 }
 
@@ -1445,11 +2309,11 @@ body.photo-hero .site-header.is-scrolled {
   .lead-panel { padding: var(--space-6) var(--space-5); }
   .hero-meta { gap: var(--space-2); }
 
-  /* Tighter vertical padding so the headline, lead and both CTAs
-     still fit inside one viewport at phone height */
+  /* Tighter vertical padding so the headline, lead, both CTAs and the
+     proof bar still fit inside one viewport at phone height */
   .photo-hero-content {
     padding-top: var(--space-9);
-    padding-bottom: var(--space-8);
+    padding-bottom: var(--space-5);
   }
 
   /* The portrait source is already framed on Chris, so this centres
@@ -1470,61 +2334,142 @@ body.photo-hero .site-header.is-scrolled {
   .photo-frame::after {
     background: linear-gradient(to top,
       rgba(var(--ink-rgb), 0.95) 0%,
-      rgba(var(--ink-rgb), 0.90) 38%,
-      rgba(var(--ink-rgb), 0.78) 62%,
-      rgba(var(--ink-rgb), 0.45) 82%,
-      rgba(var(--ink-rgb), 0.20) 100%);
+      rgba(var(--ink-rgb), 0.92) 42%,
+      rgba(var(--ink-rgb), 0.86) 66%,
+      rgba(var(--ink-rgb), 0.62) 84%,
+      rgba(var(--ink-rgb), 0.30) 100%);
   }
 
-  .photo-credit {
-    right: var(--space-4);
-    bottom: var(--space-3);
-    max-width: 55%;
+  .photo-credit { margin-top: var(--space-3); }
+
+  .hero-proof { margin-top: var(--space-5); gap: var(--space-4) var(--space-6); }
+
+  /* Shallower corridor and smaller cards, or the walls fly past the
+     edges of a phone viewport before they reach the vanishing point.
+
+     900px, not 700: a shallower perspective foreshortens harder, so the
+     near cards grew fast and crowded out the receding ones behind them,
+     leaving little to read as a corridor. Raising it flattens the growth
+     curve. Note that a card does sweep across the whole band once per
+     cycle as it passes the camera — that is the fly-through effect and it
+     happens identically at 1280px, so it is not something to design out.
+
+     The duration is overridden here because --span is: the invariant above
+     says they scale together, and 53s was authored for 3200px. Leaving it
+     ran the phone fly-through 31% slow. */
+  .corridor { height: 320px; perspective: 900px; }
+  .corridor-card { width: 200px; }
+  .corridor-wall { --gap-z: 220px; --span: 2200px; animation-duration: 36s; }
+  .corridor-left .corridor-card {
+    transform: translate3d(-215px, -50%, calc(var(--i) * var(--gap-z) * -1)) rotateY(34deg);
+  }
+  .corridor-right .corridor-card {
+    transform: translate3d(15px, -50%, calc(var(--i) * var(--gap-z) * -1)) rotateY(-34deg);
   }
 
-  /* A 4-column table cannot work this narrow — reflow to one
-     card per journey stage, column names as inline labels */
-  .matrix { min-width: 0; font-size: var(--fs-body); }
-  .matrix thead { display: none; }
-  .matrix tbody, .matrix tr, .matrix tbody th, .matrix tbody td { display: block; }
-
-  .matrix tbody tr,
-  .matrix tbody tr:nth-child(even) {
-    background: var(--ink-2);
-    border: var(--border-hairline);
-    border-left: 4px solid var(--oxblood);
-    border-radius: var(--radius-md);
-    margin-bottom: var(--space-3);
-    padding: var(--space-5);
+  /* The centre radial is what swallows the vanishing point, and at this
+     width it covers proportionally far more of the band — it was erasing
+     the receding cards that make the corridor legible as a corridor, and
+     leaving a dead black gutter between two slabs. Lightened, and the edge
+     fade widened to take over the job of hiding the near cards' cropping. */
+  .corridor::after {
+    background:
+      radial-gradient(13% 24% at 50% 50%,
+        rgba(var(--ink-rgb), 0.7) 0%,
+        rgba(var(--ink-rgb), 0.35) 45%,
+        rgba(var(--ink-rgb), 0) 82%),
+      linear-gradient(to right,
+        var(--ink) 0%,
+        rgba(var(--ink-rgb), 0) 16%,
+        rgba(var(--ink-rgb), 0) 84%,
+        var(--ink) 100%);
   }
 
-  .matrix tbody th {
-    white-space: normal;
-    font-size: var(--fs-h3);
-    padding: 0 0 var(--space-4) 0;
-    border-bottom: var(--border-hairline);
+  /* Side by side leaves neither panel usable at this width */
+  .consult-grid {
+    grid-template-columns: 1fr;
+    /* Stacked, so the whole thing scrolls as one column rather than the
+       form scrolling inside a fixed panel — on a phone, scrolling the
+       intro away is the expected behaviour. Rows go back to auto: the
+       base minmax(0,1fr) would squeeze both into a single track. */
+    grid-template-rows: auto auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
-
-  .matrix tbody td {
-    padding: var(--space-4) 0 0 0;
-    border-bottom: none;
-  }
-
-  .matrix tbody td::before {
-    content: attr(data-label);
-    display: block;
-    font-size: var(--fs-micro);
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: var(--tracking-wide);
-    color: var(--paper-faint);
-    margin-bottom: var(--space-1);
+  .consult-visual { order: -1; padding: var(--space-6); }
+  .consult-visual-copy { font-size: var(--fs-h3); }
+  .consult-form {
+    padding: var(--space-6) var(--space-5);
+    overflow-y: visible; /* the grid is the scroll container here */
   }
 }
 
 @media (max-width: 600px) {
-  .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+  .grid-5, .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
   .ways { grid-template-columns: 1fr; }
+}
+
+/* ---- Small phones ----
+   Everything above was written against 600px as the floor, so a 360px
+   viewport used to get rules identical to a 599px one. This is the tier
+   where the assumptions actually stop holding. */
+@media (max-width: 480px) {
+  /* 16px gutters buy back 16px of measure, which several rules below
+     and the headline clamps all need at 320px */
+  .wrap { padding: 0 var(--space-4); }
+
+  /* The pill stacks. Side by side it could not work at this width: the
+     button is flex:0 0 auto so its max-content width is the floor of the
+     whole control, which left the email field 32px wide on the newsletter
+     page — measured, not estimated — and pushed the pill past the
+     viewport. Stacked, the button gets a full line and the field gets the
+     rest, so both stay usable. */
+  .form-pill {
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+  }
+
+  .form-pill-fields {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+
+  .form-pill input {
+    padding: var(--space-3);
+    text-align: center;
+  }
+
+  .form-pill .btn {
+    justify-content: center;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  /* Shrink-wrapped on wider screens because it holds only a button; at this
+     width it should span the column like every other stacked control */
+  .form-pill-compact { display: flex; }
+
+  /* Tighter again below 480. The walls have to sit closer to the centre or
+     they leave a black gutter down the middle with a cropped slab either
+     side, which is the opposite of a corridor. Span, gap and duration stay
+     locked to each other per the invariant in §19b. */
+  .corridor { height: 260px; perspective: 800px; }
+  .corridor-card { width: 160px; }
+  .corridor-wall { --gap-z: 180px; --span: 1800px; animation-duration: 30s; }
+  .corridor-left .corridor-card {
+    transform: translate3d(-168px, -50%, calc(var(--i) * var(--gap-z) * -1)) rotateY(34deg);
+  }
+  .corridor-right .corridor-card {
+    transform: translate3d(8px, -50%, calc(var(--i) * var(--gap-z) * -1)) rotateY(-34deg);
+  }
+
+  /* Cards carry the same padding at 320px as at 1440px, which spends 48px
+     of a 288px measure on air */
+  .card { padding: var(--space-5) var(--space-4); }
+  .post-body { padding: var(--space-5); }
+  .faq summary { padding: var(--space-4) var(--space-5); }
+  .faq p { margin: 0 var(--space-5) var(--space-4); }
+  .channel-note { padding: var(--space-6) var(--space-5); }
 }
 
 /* ---------------------------------------------------------------
@@ -1543,6 +2488,69 @@ body.photo-hero .site-header.is-scrolled {
   .reveal { opacity: 1; transform: none; }
   .btn:hover, a.card:hover, a.post-card:hover { transform: none; }
 
+  /* The blanket rule above zeroes transition-duration but NOT
+     transition-delay, so each of these would still lag. The states must
+     stay reachable — only the travel is removed. */
+  .nav-indicator { transition: none; }
+  .nav-panel { transition: none; }
+  .nav-sub-trigger svg { transition: none; }
+
+  .form-pill.is-submitted .form-pill-success { transition-delay: 0s; transform: none; }
+  .form-pill.is-submitted .form-tick-path { animation: none; stroke-dashoffset: 0; }
+  .form-pill.is-submitted .form-pill-fields { transform: none; }
+
+  /* The corridor cannot simply be frozen: a stopped 3D corridor leaves half
+     the photographs edge-on and unreadable, and the far ones invisible. It
+     flattens to a plain grid instead, which is the only version of this
+     section where every photo is actually legible. */
+  .corridor {
+    height: auto;
+    perspective: none;
+    overflow: visible;
+    /* The 3D version bleeds to the viewport edge on purpose; a flat grid
+       doing that just looks unaligned against every other section */
+    max-width: var(--max-width);
+    margin: var(--space-7) auto 0;
+    padding: 0 var(--space-5);
+  }
+  .corridor::after { display: none; }
+  .corridor-wall {
+    position: static;
+    animation: none;
+    transform: none;
+    transform-style: flat;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+  .corridor-wall + .corridor-wall { margin-top: var(--space-3); }
+  .corridor-card {
+    position: static;
+    width: auto;
+    box-shadow: none;
+  }
+  /* Only the first copy of each set — the duplicate exists solely to make
+     the fly-through loop seamless, and stacked in a grid it is just repeats.
+     n + 11 because each wall holds TEN unique cards written twice; this said
+     n + 7 from when it was six, which silently dropped four real photographs
+     for every reduced-motion visitor. If the card count changes again, this
+     number and --span both follow it. */
+  .corridor-card:nth-child(n + 11) { display: none; }
+  .corridor-left .corridor-card,
+  .corridor-right .corridor-card { transform: none; }
+
+  /* Three columns of a twenty-photo grid is roughly 83px per photo at
+     320px — legible as colour, not as a room. This has to be nested rather
+     than added to the 600px block in §22, because that block sits earlier
+     in the file and media queries carry no specificity, so the rule above
+     would win. */
+  @media (max-width: 700px) {
+    .corridor { padding: 0 var(--space-4); }
+    .corridor-wall { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  .grain-cta::before { animation: none; }
+
   /* Static wrapping wall — JS also skips cloning under reduced
      motion, but belt and braces in case the class is already set */
   .marquee { mask-image: none; -webkit-mask-image: none; }
@@ -1553,6 +2561,7 @@ body.photo-hero .site-header.is-scrolled {
     justify-content: center;
   }
   .logo-tile:hover, .logo-tile:focus-visible { transform: none; }
+
 
   /* Notched cards: keep the surfaces and badge, drop the movement */
   .way:hover, .way:focus-visible { transform: none; }
@@ -1592,7 +2601,10 @@ body.photo-hero .site-header.is-scrolled {
 
 .newsletter-hero .wrap {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  /* minmax(0, …) so the text track can shrink below its widest word. A bare
+     1fr is minmax(auto, 1fr) and takes its floor from min-content, which is
+     how one long headline word pushed this whole row past the viewport. */
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: var(--space-8);
   /* Top-aligned rather than centered: the text column is much taller
      than the 320px photo, so centering left a large empty gap above it */
@@ -1623,7 +2635,10 @@ body.photo-hero .site-header.is-scrolled {
 .load-in-5 { animation-delay: 380ms; }
 
 @media (max-width: 700px) {
-  .newsletter-hero .wrap { grid-template-columns: 1fr; }
+  /* minmax(0,1fr), not 1fr: a bare 1fr track is minmax(auto, 1fr) and cannot
+     shrink below its widest child's min-content, so one long word held the
+     whole hero at 481px on every phone regardless of viewport. */
+  .newsletter-hero .wrap { grid-template-columns: minmax(0, 1fr); }
   .newsletter-hero .founder-photo { max-width: 260px; margin: 0 auto; }
 }
 
@@ -1638,15 +2653,8 @@ body.photo-hero .site-header.is-scrolled {
 
 .card-num { color: var(--oxblood); }
 
-/* Swapped in over .newsletter-form once a submit succeeds */
-.form-success {
-  display: none;
-  font-size: var(--fs-lead);
-  font-weight: 600;
-}
-
-.form-success.is-visible { display: block; }
-.newsletter-form.is-submitted { display: none; }
+/* The old display:none swap between form and message is gone — the pill
+   morphs in place instead. See .form-pill in section 15. */
 
 .newsletter-footer { padding: var(--space-7) 0; text-align: center; }
 
@@ -1657,6 +2665,29 @@ body.photo-hero .site-header.is-scrolled {
 }
 
 .newsletter-footer p:last-child { margin-bottom: 0; }
+
+/* The site URL is a paragraph of its own, so it is a standalone target
+   rather than an inline one and needs a tappable box. overflow-wrap
+   because it is a 36-character unbreakable string. */
+.newsletter-footer p > a:only-child {
+  display: inline-block;
+  padding: var(--space-3) 0;
+  overflow-wrap: anywhere;
+}
+
+/* Pulled out of card 03 and given its own weight — feedback flagged this
+   line as the strongest copy on the page and asked that it not stay
+   buried inside a card */
+.section-callout {
+  margin: var(--space-7) auto 0;
+  max-width: 46ch;
+  text-align: center;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  font-size: var(--fs-h3);
+  line-height: 1.4;
+  color: var(--mustard);
+}
 
 /* ---- Staggered card entrance ----
    The section itself already fades in via .reveal; these give each card
@@ -1772,4 +2803,535 @@ body.photo-hero .site-header.is-scrolled {
         rgba(var(--ink-rgb), 0.76) 50%,
         rgba(var(--ink-rgb), 0.82) 100%);
   }
+}
+
+/* ---------------------------------------------------------------
+   26. NEWSLETTER NUDGE
+
+   Timed slide-in, injected by initNewsletterNudge() ten seconds after
+   load. Deliberately NOT a dialog: it arrives unprompted, so trapping or
+   stealing focus would interrupt whatever the visitor was reading or
+   typing. An aside with a close button, nothing more.
+
+   z-index 70 puts it above the header (50) and nav panel (60) and below
+   the skip link (100), so it can never cover the first thing a keyboard
+   user reaches.
+   --------------------------------------------------------------- */
+
+.nudge {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 70;
+  width: min(340px, calc(100vw - 2 * var(--space-5)));
+  padding: var(--space-6) var(--space-5) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--ink-2);
+  border: 1px solid rgba(var(--paper-rgb), 0.14);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  isolation: isolate;
+  transform: translateX(calc(100% + var(--space-7)));
+  opacity: 0;
+  transition: transform var(--t-slow) var(--ease),
+              opacity var(--t-slow) var(--ease);
+}
+
+.nudge.is-open { transform: translateX(0); opacity: 1; }
+
+/* Same drifting bloom as .grain-cta, reused rather than reinvented so the
+   two read as one system. Sits behind the content via z-index, not order. */
+.nudge::before {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  z-index: -2;
+  background:
+    radial-gradient(40% 44% at 26% 28%, var(--oxblood) 0%, transparent 66%),
+    radial-gradient(34% 38% at 76% 74%, var(--mustard) 0%, transparent 66%);
+  filter: blur(58px);
+  opacity: 0.7;
+  animation: grain-drift 26s ease-in-out infinite alternate;
+}
+
+.nudge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: var(--grain);
+  opacity: 0.4;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.nudge-eyebrow {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--mustard);
+}
+
+/* Family, size and tracking come from the card-title rule in §3 */
+.nudge-title {
+  margin: 0 0 var(--space-3);
+  text-transform: uppercase;
+  color: var(--paper);
+}
+
+.nudge-body {
+  margin: 0 0 var(--space-5);
+  font-size: var(--fs-small);
+  color: var(--paper-muted);
+}
+
+.nudge-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--mustard);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: var(--fs-small);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-sm);
+  transition: transform var(--t-fast) var(--ease);
+}
+
+.nudge-cta:hover { transform: translateY(-2px); }
+
+/* 44px. It was 30px — the smallest target on the site, and on a phone it is
+   the only way to dismiss the bar: there is no swipe and no tap-outside,
+   and Escape is not a phone gesture. */
+.nudge-close {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--border-hairline);
+  border-radius: var(--radius-pill);
+  background: rgba(var(--ink-rgb), 0.5);
+  color: var(--paper-muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--t-fast) var(--ease),
+              border-color var(--t-fast) var(--ease);
+}
+
+.nudge-close:hover { color: var(--paper); border-color: var(--paper); }
+
+/* A card pinned to one corner reads as an interruption on a phone; full
+   width along the bottom reads as a bar, and slides from the nearest edge */
+@media (max-width: 700px) {
+  .nudge {
+    left: var(--space-4);
+    right: var(--space-4);
+    /* Clear of the iPhone home-indicator strip. At a flat 16px the CTA sat
+       inside the system's swipe-up zone, so a tap near it was ambiguous
+       between pressing the button and going home. env() resolves to 0 on
+       every device without an inset, so the fallback needs no query. */
+    bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    transform: translateY(calc(100% + var(--space-6)));
+  }
+  .nudge.is-open { transform: translateY(0); }
+
+  /* The drawer wins while it is open. The nudge outranks the header (70 vs
+     50) so it can float over an expanded drawer's lower links — including
+     the "Get In Touch" CTA the drawer puts last. Nothing dismisses the
+     nudge to get at them, so it has to yield. */
+  body:has(.nav-links.open) .nudge {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+/* The content is useful; only the movement is the problem. So it appears
+   in place rather than being suppressed. */
+@media (prefers-reduced-motion: reduce) {
+  .nudge {
+    transform: none;
+    transition: opacity var(--t-base) linear;
+  }
+  .nudge.is-open { transform: none; }
+  .nudge::before { animation: none; }
+}
+
+/* ---------------------------------------------------------------
+   27. SERVICE PAGE LAYOUT
+
+   Built for the channel pages, which run long (1,200 words plus) and
+   would read as an undifferentiated column without a rhythm to them.
+   Two devices only: an alternating copy/photo row, and a timeline.
+   Everything else on those pages reuses the existing card, grid, faq
+   and section-colour components.
+   --------------------------------------------------------------- */
+
+.channel-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-7);
+  align-items: center;
+  margin-top: var(--space-8);
+}
+
+/* Alternate which side the photo sits on, so a run of these reads as a
+   rhythm rather than a list. Set explicitly per row rather than with
+   :nth-of-type(even): that counts EVERY sibling div, so a .section-head
+   above the rows shifts the whole alternation by one and the numbering
+   ends up reading 01, 02, 04, 03. */
+.channel-row.is-flipped .channel-media { order: -1; }
+
+.channel-num {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--fs-h2);
+  line-height: 1;
+  color: var(--mustard);
+  margin-bottom: var(--space-3);
+}
+
+.channel-row h3 {
+  font-size: var(--fs-h2);
+  margin-bottom: var(--space-4);
+}
+
+.channel-row p { color: var(--paper-muted); }
+
+.channel-media img {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* No honest photograph exists for some of these sections (technical
+   work, AI search). Rather than reach for a stock stand-in on a site
+   that promises never to, those get type on a brand surface. */
+.channel-note {
+  padding: var(--space-7) var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--ink-2);
+  border: 1px solid rgba(var(--paper-rgb), 0.12);
+}
+
+.channel-note .eyebrow { margin-bottom: var(--space-3); }
+
+/* These panels are used both inside a .channel-row and standalone in a
+   grid, so they cannot rely on .channel-row h3 for their spacing. Family
+   and size come from the card-title rule in §3. */
+.channel-note h3 {
+  margin-bottom: var(--space-4);
+}
+
+.channel-note p:last-child { margin-bottom: 0; }
+
+/* An ordered process reads better against a spine than as another card
+   grid; these pages already carry two grids. */
+.timeline {
+  list-style: none;
+  margin: var(--space-7) 0 0;
+  padding: 0;
+}
+
+.timeline li {
+  position: relative;
+  padding: 0 0 var(--space-6) var(--space-7);
+  border-left: 2px solid rgba(var(--paper-rgb), 0.16);
+}
+
+.timeline li:last-child { padding-bottom: 0; border-left-color: transparent; }
+
+.timeline li::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background: var(--mustard);
+}
+
+.timeline-when {
+  display: block;
+  font-size: var(--fs-micro);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--mustard);
+  margin-bottom: var(--space-2);
+}
+
+.timeline p { margin: 0; color: var(--paper-muted); }
+
+.section-paper .timeline li { border-left-color: rgba(var(--ink-rgb), 0.18); }
+
+/* The paragraph that closes a timeline's argument, as opposed to the
+   one-line cross-link footnote .note is sized for. Full body colour,
+   because it is the point rather than an aside. */
+.timeline-summary {
+  margin-top: var(--space-6);
+  max-width: 68ch;
+  color: var(--paper-muted);
+}
+
+.section-paper .timeline-summary { color: var(--ink-muted); }
+.section-paper .timeline p,
+.section-paper .channel-row p { color: var(--ink-muted); }
+
+@media (max-width: 700px) {
+  .channel-row { grid-template-columns: 1fr; gap: var(--space-5); }
+  /* Photo first on a phone: it orients the reader before the copy */
+  .channel-row .channel-media { order: -1 !important; }
+  .channel-note { padding: var(--space-6) var(--space-5); }
+}
+
+/* ---------------------------------------------------------------
+   28. POINTER CAPABILITY
+   --------------------------------------------------------------- */
+
+/* A touch device fires :hover on tap and then holds it until the next tap
+   lands somewhere else. So every affordance meant to say "this is
+   clickable" instead says "this is stuck": a card sitting 4px off the page
+   with a shadow under it, a badge frozen mid-spin, all through the
+   navigation away and often on return via the back button.
+
+   Neutralised here rather than by wrapping a dozen scattered rules in
+   (hover: hover), which would mean restructuring §4, §10, §11, §20 and §26
+   for one concern. The shape mirrors the reduced-motion block in §23 — same
+   selectors, same reason to exist, different trigger.
+
+   :focus-visible is deliberately untouched: a keyboard user on a
+   touchscreen laptop still gets the full affordance, and it cannot stick,
+   because focus moves on. */
+@media (hover: none) {
+  .btn:hover,
+  a.card:hover,
+  a.post-card:hover,
+  .nudge-cta:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  a.card:hover .card-more::after,
+  a.post-card:hover .card-more::after { transform: none; }
+
+  .logo-tile:hover { transform: none; border-color: transparent; }
+
+  .way:hover { transform: none; box-shadow: none; }
+  .way:hover::before { opacity: 0; }
+  .way:hover .way-badge { transform: none; }
+  .way:hover .way-cta::after { transform: none; }
+}
+
+/* ---------------------------------------------------------------
+   29. SHOWCASE — copy beside two photographs that drift apart
+
+   A vanilla rebuild of a React/framer-motion component. The reference
+   used whileInView + staggerChildren; this rides the .reveal
+   IntersectionObserver that already exists (initReveals in main.js), so
+   the section costs no JavaScript at all — the same trick the .way
+   stagger in §20 uses.
+
+   Its palette was black / #868f97 / white glassmorphism. Mapped to this
+   brand: --ink ground, --paper-muted body, an oxblood-tinted --ink-2
+   back plate, and for the front card a hairline paper border with
+   --shadow-lg in place of the frosted glass, which does not read over an
+   ink ground the way it does over pure black.
+   --------------------------------------------------------------- */
+
+.showcase {
+  position: relative;
+  background: var(--ink);
+  overflow: hidden;   /* the back layer is deliberately outside the column */
+}
+
+.showcase-grid {
+  display: grid;
+  /* minmax(0, …) on BOTH tracks. A bare 1fr floors at min-content, which is
+     how one long word once held the newsletter hero at 481px on every phone. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-8);
+  align-items: center;
+}
+
+.showcase-copy { max-width: 34rem; }
+
+.showcase-copy h2 { margin-top: var(--space-3); }
+
+.showcase-copy .lead { margin-top: var(--space-4); color: var(--paper-muted); }
+
+.showcase-points {
+  list-style: none;
+  margin: var(--space-6) 0 var(--space-7);
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* Same mustard rule as the consult panel's points, so the two read as one
+   system rather than two takes on a list */
+.showcase-points li {
+  position: relative;
+  padding-left: var(--space-6);
+  color: var(--paper-muted);
+  font-size: var(--fs-small);
+}
+
+.showcase-points li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 14px;
+  height: 2px;
+  background: var(--mustard);
+}
+
+/* ---- The two layers ----
+   The back plate sits up and left of the front card and is the thing that
+   makes this read as depth rather than as one photo. It is pulled outside
+   the column on purpose; .showcase clips it. */
+
+.showcase-media {
+  position: relative;
+  justify-self: center;
+  width: 100%;
+  max-width: 470px;
+  /* Reserves the height both absolutely-positioned layers need, plus the
+     travel, so the drift never reflows the section under itself */
+  padding-block: var(--space-7);
+}
+
+.showcase-layer {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  /* 1.2s is far slower than --t-slow and deliberately so: this is the
+     section's one signature move, and at --t-slow it reads as a jump
+     rather than a drift. */
+  transition: transform 1.2s var(--ease), opacity 1.2s var(--ease);
+}
+
+.showcase-layer img {
+  width: 100%;
+  /* height:auto is load-bearing — the same trap documented on .post-thumb
+     and .founder-photo. The img carries height="600", which lands on the CSS
+     height property as a presentational hint; with width and height both
+     definite, aspect-ratio is ignored and the crop never happens. The
+     attributes stay for CLS reservation. */
+  height: auto;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+}
+
+.showcase-back {
+  position: absolute;
+  top: 0;
+  left: -14%;
+  width: 78%;
+  z-index: 0;
+  opacity: 0.55;
+  filter: blur(1px);
+  border: 1px solid rgba(var(--paper-rgb), 0.1);
+  /* Tints the plate towards oxblood so the pair reads as brand rather than
+     as the same photograph printed twice */
+  background: var(--oxblood);
+}
+
+.showcase-back img { opacity: 0.72; }
+
+.showcase-front {
+  position: relative;
+  z-index: 1;
+  margin-left: 12%;
+  border: 1px solid rgba(var(--paper-rgb), 0.18);
+  box-shadow: var(--shadow-lg);
+  background: var(--ink-2);
+}
+
+/* ---- Entrance ----
+   Copy and media fade up together, media 200ms behind (the reference's
+   staggerChildren: 0.2). Then the two layers pull apart. */
+
+/* The section carries .reveal only to collect is-visible from the observer.
+   Its own 18px fade is suppressed so the staggered children ARE the
+   animation — running both means the copy fades twice at different rates
+   and the whole band reads as mush. */
+.showcase.reveal { opacity: 1; transform: none; transition: none; }
+
+.showcase .showcase-copy,
+.showcase .showcase-media {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity var(--t-slow) var(--ease),
+              transform var(--t-slow) var(--ease);
+}
+
+.showcase.is-visible .showcase-copy,
+.showcase.is-visible .showcase-media { opacity: 1; transform: none; }
+
+.showcase.is-visible .showcase-media { transition-delay: 200ms; }
+
+/* At rest the two layers sit together; on reveal they separate. Starting
+   them apart and closing would fight the fade-up above, which is already
+   travelling downward. */
+.showcase.is-visible .showcase-back { transform: translateY(-30px); }
+.showcase.is-visible .showcase-front {
+  transform: translateY(30px);
+  transition-delay: 100ms;
+}
+
+/* The reference's hairline under the section. Radial rather than linear so
+   it fades at both ends instead of butting into the page edge. */
+.showcase::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 1px;
+  background: radial-gradient(50% 50% at 50% 50%,
+    rgba(var(--paper-rgb), 0.24) 0%,
+    rgba(var(--paper-rgb), 0) 100%);
+}
+
+@media (max-width: 900px) {
+  .showcase-grid { gap: var(--space-7); }
+}
+
+@media (max-width: 700px) {
+  /* Photo first, matching .channel-row in §27 — it orients the reader
+     before the copy does */
+  .showcase-grid { grid-template-columns: minmax(0, 1fr); }
+  .showcase-media { order: -1; }
+  .showcase-copy { max-width: none; }
+
+  /* Shorter travel: 30px each way is a third of the visible band on a
+     phone, where it reads as a glitch rather than as depth */
+  .showcase.is-visible .showcase-back { transform: translateY(-14px); }
+  .showcase.is-visible .showcase-front { transform: translateY(14px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The blanket rule in §23 zeroes transition-duration but never
+     transition-delay, so without these the section would still stagger in
+     — the trap this stylesheet documents three times. Layers rest where
+     they land; the composition is the point, not the travel. */
+  .showcase .showcase-copy,
+  .showcase .showcase-media { opacity: 1; transform: none; }
+  .showcase.is-visible .showcase-media,
+  .showcase.is-visible .showcase-front { transition-delay: 0ms; }
+  .showcase-layer { transition: none; }
+  .showcase.is-visible .showcase-back { transform: translateY(-30px); }
+  .showcase.is-visible .showcase-front { transform: translateY(30px); }
 }
