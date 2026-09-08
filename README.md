@@ -1,5 +1,16 @@
 # Website Sign Up
 
+> **Superseded. Not deployed.**
+>
+> The signup page Vercel actually serves is
+> [signup-website-chris](https://github.com/Killobite2/signup-website-chris), as
+> the `signup-website-chris` project at `signup-website-chris.vercel.app`. This
+> repo has no Vercel project attached and never has.
+>
+> It is kept for its history. Sync work belongs in `signup-website-chris`, and a
+> sync landed here by mistake once already because a note named this repo as the
+> live one.
+
 Standalone newsletter signup page for CL Growth Academy, built on the brand's
 existing design tokens (Workshop Ink / Oxblood / Paper / Mustard / Cream —
 Alfa Slab One, Yellowtail, Work Sans). Subscribes to
